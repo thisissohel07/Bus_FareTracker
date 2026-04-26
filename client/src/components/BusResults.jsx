@@ -39,63 +39,67 @@ export default function BusResults({ results, searchInfo, onTrackBus }) {
       <div className="space-y-3">
         {sortedResults.map((bus, i) => (
           <div key={`${bus.name}-${bus.price}-${i}`}
-            className="glass-card p-4 flex items-center gap-4 hover:border-dark-600/50 transition-all group"
+            className="glass-card p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-dark-600/50 transition-all group"
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            {/* Bus icon */}
-            <div className="w-10 h-10 rounded-xl bg-dark-700/50 flex items-center justify-center shrink-0">
-              <FaBus className="text-primary-400" />
-            </div>
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              {/* Bus icon */}
+              <div className="w-10 h-10 rounded-xl bg-dark-700/50 flex items-center justify-center shrink-0">
+                <FaBus className="text-primary-400" />
+              </div>
 
-            {/* Bus info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-white truncate">{bus.name || 'Unknown Operator'}</h3>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {bus.busType && (
-                  <span className="text-[11px] bg-primary-500/10 text-primary-300 px-2 py-0.5 rounded-md">
-                    {bus.busType}
-                  </span>
-                )}
-                {bus.departure && (
-                  <span className="text-[11px] text-dark-400 flex items-center gap-1">
-                    <HiOutlineClock className="text-xs" /> {bus.departure}
-                  </span>
-                )}
-                {bus.rating && (
-                  <span className="text-[11px] text-amber-400 flex items-center gap-0.5">
-                    <HiOutlineStar className="text-xs" /> {bus.rating}
-                  </span>
-                )}
-                {bus.seats && (
-                  <span className="text-[11px] text-dark-400 flex items-center gap-1">
-                    <HiOutlineTicket className="text-xs" /> {bus.seats} seats
-                  </span>
-                )}
+              {/* Bus info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-white truncate">{bus.name || 'Unknown Operator'}</h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {bus.busType && (
+                    <span className="text-[11px] bg-primary-500/10 text-primary-300 px-2 py-0.5 rounded-md">
+                      {bus.busType}
+                    </span>
+                  )}
+                  {bus.departure && (
+                    <span className="text-[11px] text-dark-400 flex items-center gap-1">
+                      <HiOutlineClock className="text-xs" /> {bus.departure}
+                    </span>
+                  )}
+                  {bus.rating && (
+                    <span className="text-[11px] text-amber-400 flex items-center gap-0.5">
+                      <HiOutlineStar className="text-xs" /> {bus.rating}
+                    </span>
+                  )}
+                  {bus.seats && (
+                    <span className="text-[11px] text-dark-400 flex items-center gap-1">
+                      <HiOutlineTicket className="text-xs" /> {bus.seats} seats
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Price */}
-            <div className="text-right shrink-0">
-              <div className="flex items-baseline gap-1.5">
-                {bus.originalPrice && bus.originalPrice > bus.price && (
-                  <span className="text-xs text-dark-500 line-through">₹{bus.originalPrice}</span>
+            <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t border-dark-700/50 sm:border-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
+              {/* Price */}
+              <div className="text-left sm:text-right">
+                <div className="flex items-baseline gap-1.5">
+                  {bus.originalPrice && bus.originalPrice > bus.price && (
+                    <span className="text-xs text-dark-500 line-through">₹{bus.originalPrice}</span>
+                  )}
+                  <span className="text-xl font-bold text-white">₹{bus.price}</span>
+                </div>
+                {bus.discount && bus.discount > 0 && (
+                  <p className="text-[11px] text-emerald-400 font-medium">Save ₹{bus.discount}</p>
                 )}
-                <span className="text-xl font-bold text-white">₹{bus.price}</span>
               </div>
-              {bus.discount && bus.discount > 0 && (
-                <p className="text-[11px] text-emerald-400 font-medium">Save ₹{bus.discount}</p>
-              )}
-            </div>
 
-            {/* Track button */}
-            <button
-              onClick={() => onTrackBus?.(bus)}
-              className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 rounded-lg transition-all opacity-70 group-hover:opacity-100"
-              title="Track this bus for price drops"
-            >
-              <HiOutlineBell className="text-sm" />
-              Track
-            </button>
+              {/* Track button */}
+              <button
+                onClick={() => onTrackBus?.(bus)}
+                className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-all opacity-100 sm:opacity-70 group-hover:opacity-100"
+                title="Track this bus for price drops"
+              >
+                <HiOutlineBell className="text-sm" />
+                Track
+              </button>
+            </div>
           </div>
         ))}
       </div>

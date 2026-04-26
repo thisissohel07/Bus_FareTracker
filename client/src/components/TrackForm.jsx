@@ -183,8 +183,8 @@ export default function TrackForm({ onTrackCreated, onSearchResults }) {
             />
             <CityDropdown items={srcHints} field="source" query={formData.source} loading={srcLoading} focused={srcFocused} />
           </div>
-          <div className="flex items-end justify-center pb-1">
-            <button type="button" onClick={swap} className="w-10 h-10 rounded-full bg-dark-700/50 border border-dark-600 flex items-center justify-center text-dark-300 hover:text-primary-400 hover:border-primary-500/50 transition-all hover:rotate-180 duration-500" title="Swap"><HiOutlineSwitchHorizontal className="text-lg"/></button>
+          <div className="flex items-center sm:items-end justify-center py-2 sm:py-0 sm:pb-1">
+            <button type="button" onClick={swap} className="w-10 h-10 rounded-full bg-dark-700/50 border border-dark-600 flex items-center justify-center text-dark-300 hover:text-primary-400 hover:border-primary-500/50 transition-all hover:rotate-180 sm:rotate-0 rotate-90 duration-500" title="Swap"><HiOutlineSwitchHorizontal className="text-lg"/></button>
           </div>
           <div className="flex-1 relative">
             <label className="label" htmlFor="destination"><HiOutlineLocationMarker className="inline mr-1 text-purple-400"/>To</label>
