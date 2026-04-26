@@ -16,6 +16,7 @@ const PriceHistory = require('../models/PriceHistory');
 const { protect, optionalAuth } = require('../middleware/auth');
 const { scrapeBusPrices } = require('../services/scraperService');
 const { searchCities } = require('../services/cityService');
+const { sendTrackConfirmationEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -155,6 +156,16 @@ router.post('/track', optionalAuth, async (req, res) => {
             source: track.source,
             destination: track.destination,
             busName: track.busName,
+          });
+
+          // Send confirmation email that tracking is set up
+          await sendTrackConfirmationEmail({
+            to: track.userEmail,
+            source: track.source,
+            destination: track.destination,
+            date: track.date,
+            busName: track.busName,
+            currentPrice: result.price,
           });
 
           logger.info(`✅ Initial price fetched: ₹${result.price} for ${source} → ${destination}`);

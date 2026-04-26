@@ -102,4 +102,74 @@ const sendPriceDropEmail = async ({ to, source, destination, date, oldPrice, new
   }
 };
 
-module.exports = { sendPriceDropEmail };
+/**
+ * Send an alert confirmation email when a new track is created
+ */
+const sendTrackConfirmationEmail = async ({ to, source, destination, date, busName, currentPrice }) => {
+  const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;background-color:#0f172a;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+      <div style="max-width:600px;margin:20px auto;background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;overflow:hidden;border:1px solid #334155;">
+        <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);padding:32px;text-align:center;">
+          <h1 style="color:#fff;margin:0;font-size:28px;">🚌 BusFare Tracker</h1>
+          <p style="color:#e0e7ff;margin:8px 0 0;font-size:14px;">Tracking Alert Activated!</p>
+        </div>
+        <div style="padding:32px;">
+          <p style="color:#f1f5f9;font-size:16px;line-height:1.6;margin:0 0 24px;">
+            You have successfully set up a price drop alert. We will check the fare every 30 minutes and email you immediately if the price drops!
+          </p>
+          <div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #334155;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;">Route</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;text-align:right;font-weight:600;">${capitalizeFirst(source)} → ${capitalizeFirst(destination)}</td></tr>
+              <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;border-top:1px solid #334155;">Date</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;text-align:right;border-top:1px solid #334155;">${formattedDate}</td></tr>
+              ${busName ? `<tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;border-top:1px solid #334155;">Bus</td><td style="padding:8px 0;color:#f1f5f9;font-size:14px;text-align:right;border-top:1px solid #334155;">${busName}</td></tr>` : ''}
+              <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;border-top:1px solid #334155;">Current Price</td><td style="padding:8px 0;color:#fbbf24;font-size:14px;text-align:right;font-weight:bold;border-top:1px solid #334155;">₹${currentPrice}</td></tr>
+            </table>
+          </div>
+          <p style="color:#94a3b8;font-size:13px;margin:0;text-align:center;">
+            Sit back and relax! We'll do the checking for you.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      logger.warn('Email mock (Confirmation):', { to, source, destination, currentPrice });
+      return { success: true, mock: true };
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: `BusFare Tracker <${process.env.RESEND_FROM_EMAIL}>`,
+      to,
+      subject: `✅ Tracking Started: ${capitalizeFirst(source)} to ${capitalizeFirst(destination)}`,
+      html: htmlContent,
+    });
+
+    if (error) {
+      logger.error('Resend API error:', error);
+      return { success: false, error };
+    }
+
+    logger.info(`📧 Tracking confirmation email sent to ${to}`);
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to send confirmation email:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+module.exports = {
+  sendPriceDropEmail,
+  sendTrackConfirmationEmail
+};
