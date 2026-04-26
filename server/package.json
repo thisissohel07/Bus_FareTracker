@@ -1,0 +1,26 @@
+{
+  "name": "busfare-tracker-server",
+  "version": "1.0.0",
+  "description": "Backend for BusFare Tracker - tracks bus ticket prices and notifies on drops",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.15.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.0",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^23.4.0",
+    "resend": "^4.8.0",
+    "winston": "^3.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
