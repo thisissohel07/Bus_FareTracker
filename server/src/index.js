@@ -9,6 +9,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
 const logger = require('./utils/logger');
 const { startCronJob } = require('./services/cronService');
 
@@ -47,6 +48,18 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
+});
+
+// ─── Serve Frontend ─────────────────────────────────────
+const clientDistPath = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDistPath));
+
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes that fall through
+  if (req.url.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'API route not found' });
+  }
+  res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
 // ─── Global Error Handler ───────────────────────────────

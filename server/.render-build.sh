@@ -3,7 +3,6 @@
 set -o errexit
 
 npm install
-npm run build # (if applicable)
 
 # Install Chrome for Puppeteer
 echo "Installing Chrome dependencies for Puppeteer..."
