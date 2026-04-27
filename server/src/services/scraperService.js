@@ -91,7 +91,7 @@ const scrapeBusPrices = async (source, destination, date, busName = null) => {
       }
     });
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Wait for bus listings to appear
     const scrapeDelay = parseInt(process.env.SCRAPE_DELAY_MS) || 4000;
