@@ -11,15 +11,41 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Build the Node.js Backend with Puppeteer
-FROM ghcr.io/puppeteer/puppeteer:latest
+FROM node:20-slim
 
-# Run as root to allow global npm installs if needed, and to copy files
-USER root
+# Install Chrome/Chromium dependencies required by Puppeteer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell Puppeteer to use the system-installed Chromium instead of downloading its own
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 WORKDIR /app/server
 
 # Copy server package files and install dependencies
 COPY server/package*.json ./
-RUN npm install
+RUN npm install --omit=dev
 
 # Copy server source code
 COPY server/ ./
@@ -31,4 +57,4 @@ COPY --from=frontend-build /app/client/dist /app/client/dist
 EXPOSE 5000
 
 # Start the server
-CMD ["npm", "start"]
+CMD ["node", "src/index.js"]

@@ -22,7 +22,20 @@ const PORT = process.env.PORT || 5000;
 
 // ─── Middleware ──────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (same-origin, mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    // Allow configured CLIENT_URL
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      'http://localhost:5173',
+      'http://localhost:5000',
+    ].filter(Boolean);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
+    callback(null, true); // Allow all for unified deployment
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -41,12 +54,25 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', trackRoutes);
 
-// Health check endpoint
+// Health check endpoint with Puppeteer diagnostics
 app.get('/api/health', (req, res) => {
+  const fs = require('fs');
+  const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || 'not set';
+  const chromeExists = chromePath !== 'not set' ? fs.existsSync(chromePath) : false;
+
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    puppeteer: {
+      executablePath: chromePath,
+      chromeExists,
+    },
+    memory: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+    },
   });
 });
 

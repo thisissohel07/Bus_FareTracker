@@ -3,6 +3,8 @@
  * 
  * Uses Puppeteer to scrape real bus ticket prices from AbhiBus.
  * Extracts ALL buses (private + government) with actual fares.
+ * 
+ * Optimized for cloud deployment (Render, Railway, etc.)
  */
 
 const puppeteer = require('puppeteer');
@@ -47,54 +49,116 @@ const buildSearchUrl = async (source, destination, date) => {
 };
 
 /**
+ * Get Puppeteer launch options optimized for cloud environments
+ */
+const getLaunchOptions = () => {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
+
+  const options = {
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor,IsolateOrigins,site-per-process',
+      '--window-size=1920,1080',
+      '--single-process',
+      '--no-zygote',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-sync',
+      '--disable-translate',
+      '--metrics-recording-only',
+      '--mute-audio',
+    ],
+    protocolTimeout: 120000,
+  };
+
+  if (executablePath) {
+    options.executablePath = executablePath;
+    logger.info(`Using Chrome at: ${executablePath}`);
+  }
+
+  return options;
+};
+
+/**
  * Scrape ALL bus prices from AbhiBus (private + government)
  */
 const scrapeBusPrices = async (source, destination, date, busName = null) => {
   let browser = null;
+  let url = '';
 
   try {
-    const url = await buildSearchUrl(source, destination, date);
+    url = await buildSearchUrl(source, destination, date);
     logger.info(`🔍 Scraping: ${url}`);
 
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--window-size=1920,1080',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-      ],
-    });
+    browser = await puppeteer.launch(getLaunchOptions());
+    logger.info('✅ Browser launched successfully');
 
     const page = await browser.newPage();
-    page.on('console', msg => console.log('BROWSER:', msg.text()));
 
-    // Realistic user-agent
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-      '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
-    );
+    // Rotate realistic user-agents to avoid bot detection
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    ];
+    const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+    await page.setUserAgent(randomUA);
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // Block images/CSS for faster loading
+    // Stealth: override navigator.webdriver detection
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      window.chrome = { runtime: {} };
+    });
+
+    // Block heavy resources for speed
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const type = req.resourceType();
-      if (['image', 'font', 'media'].includes(type)) {
+      if (['image', 'font', 'media', 'stylesheet'].includes(type)) {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // Set longer default timeouts for cloud environments
+    page.setDefaultNavigationTimeout(90000);
+    page.setDefaultTimeout(60000);
 
-    // Wait for bus listings to appear
-    const scrapeDelay = parseInt(process.env.SCRAPE_DELAY_MS) || 4000;
+    logger.info('🌐 Navigating to AbhiBus...');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    logger.info('✅ Page loaded (domcontentloaded)');
+
+    // Wait for bus listings to appear — try multiple selectors
+    const scrapeDelay = parseInt(process.env.SCRAPE_DELAY_MS) || 5000;
+    
+    // Try to wait for actual content indicators
+    try {
+      await page.waitForFunction(
+        () => {
+          const bodyText = document.body?.innerText || '';
+          return bodyText.includes('₹') || bodyText.includes('No buses') || bodyText.includes('Oops');
+        },
+        { timeout: 30000 }
+      );
+      logger.info('✅ Price content detected on page');
+    } catch {
+      logger.warn('⚠️ Timeout waiting for price content, proceeding with scrape anyway...');
+    }
+
+    // Additional wait for dynamic content
     await delay(scrapeDelay);
 
     // Scroll down to trigger lazy-loaded private bus listings
@@ -115,6 +179,22 @@ const scrapeBusPrices = async (source, destination, date, busName = null) => {
     // Scroll again after expanding
     await autoScroll(page);
     await delay(1500);
+
+    // Debug: Log page title and content length for troubleshooting
+    const pageTitle = await page.title();
+    const bodyLength = await page.evaluate(() => document.body?.innerText?.length || 0);
+    logger.info(`📄 Page title: "${pageTitle}" | Content length: ${bodyLength} chars`);
+
+    // Check for block/captcha pages
+    const pageContent = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '');
+    if (pageContent.toLowerCase().includes('captcha') || pageContent.toLowerCase().includes('blocked') || pageContent.toLowerCase().includes('access denied')) {
+      logger.warn('🚫 Bot detection triggered! AbhiBus blocked the request.');
+      return {
+        success: false, price: null, buses: [],
+        message: 'AbhiBus temporarily blocked automated requests. Please try again in a few minutes.',
+        url, totalResults: 0,
+      };
+    }
 
     // ─── Extract bus data from the page ───────────────────
     const results = await page.evaluate((targetBus) => {
@@ -146,7 +226,6 @@ const scrapeBusPrices = async (source, destination, date, busName = null) => {
         if (lines.length < 3) return;
 
         try {
-          console.log("LINES FOR BUS:", lines.join(' | '));
           // 1. Extract Name (Ignore "From", "To")
           let name = '';
           const nameEl = card.querySelector('.travels-name, .operator-name, h5, h4, h3, [class*="travels"], [class*="operator"]');
@@ -259,13 +338,21 @@ const scrapeBusPrices = async (source, destination, date, busName = null) => {
 
   } catch (error) {
     logger.error(`❌ Scraping error for ${source} → ${destination}:`, error.message);
+    logger.error('Stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
     return {
       success: false, price: null, buses: [],
-      message: error.message,
-      url: `https://www.abhibus.com/`, // fallback
+      message: `Scraping failed: ${error.message}`,
+      url: url || `https://www.abhibus.com/`,
     };
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+        logger.info('🧹 Browser closed');
+      } catch (e) {
+        logger.warn('Browser close error:', e.message);
+      }
+    }
   }
 };
 
